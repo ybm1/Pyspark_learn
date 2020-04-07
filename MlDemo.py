@@ -2,7 +2,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import SQLContext, HiveContext
 from pyspark import SparkContext
-from pyspark.sql.functions import udf
+from pyspark.sql.functions import *
 from pyspark.sql.types import *
 import pyspark.sql.functions as F
 
@@ -11,7 +11,7 @@ from pyspark.ml.linalg import Vectors
 from pyspark.ml import Pipeline
 from pyspark.ml.classification import GBTClassifier
 from pyspark.ml.classification import RandomForestClassifier
-from pyspark.ml.feature import MaxAbsScaler,StringIndexer, VectorIndexer,VectorAssembler
+from pyspark.ml.feature import MinMaxScaler,MaxAbsScaler,StringIndexer, VectorIndexer,VectorAssembler
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 import pyspark.ml.feature as ft
@@ -107,7 +107,7 @@ df = sqlContest.createDataFrame(pandas_df)
 spark.sql('select * from XX')
 
 """
-
+"""
 # **基础描述**
 spark_df.count()  # 行数
 spark_df.columns  # 列名称
@@ -136,7 +136,7 @@ df_new=spark_df.drop('x_y_z')
 spark_df.groupBy('color').count().show(5,False)
 spark_df.groupBy('cut').count().orderBy('count',ascending=False).show(5,False)
 spark_df.groupBy('color').agg({'price':'sum'}).show(5,False)  # 根据color分区，计算price的sum
-
+"""
 
 # udf 自建sql函数
 
@@ -175,7 +175,7 @@ spark_df = spark_df.withColumn("label",myudf(spark_df['cut']))
 price_udf = udf(lambda price: "high_price" if price >= 330 else "low_price", StringType())  # using lambda function
 # 新建一列age_group
 spark_df = spark_df.withColumn("price_group", price_udf(spark_df["price"]))
-
+print(spark_df.show())
 
 
 ## 特征处理
@@ -194,13 +194,50 @@ for num_col in num_cols:
     # 用于将多个列合并为一个向量列，直接transform即可，经常用的
     # numsAssembler = VectorAssembler(inputCols=num_cols, outputCol="num_features")
     # spark_df = numsAssembler.transform(spark_df)
+    # 要用VectorAssembler转成Dense vector
     numsAssembler = VectorAssembler(inputCols=[num_col], outputCol=num_col+"_ass")
     spark_df = numsAssembler.transform(spark_df)
-    maScaler = MaxAbsScaler(inputCol=num_col+"_ass", outputCol=num_col+"_scale")
-    scalemodel = maScaler.fit(spark_df)
+    mmScaler = MinMaxScaler(inputCol=num_col+"_ass", outputCol=num_col+"_scale")
+    scalemodel = mmScaler.fit(spark_df)
     spark_df = scalemodel.transform(spark_df)
 
 # 这里的代码用到了for循环，似乎有些丑，但是没有想到更好的方法
+# 除了for循环，可以借助于map，代码如下
+"""
+# 首先计算出所有数值列的最大值和最小值，待后面使用
+cols_max = []
+cols_min = []
+for col in num_cols:
+    cols_max.append(spark_df.agg(F.max(col)).toPandas().iloc[0,0])
+    cols_min.append(spark_df.agg(F.min(col)).toPandas().iloc[0,0])
+
+spark_df_rdd = spark_df.rdd.map(lambda row:(float((row[0]-cols_min[0])/(cols_max[0]-cols_min[0])),
+                                            row[1],row[2],
+                                            float((row[3] - cols_min[1]) / (cols_max[1] - cols_min[1])),
+                                            float((row[4] - cols_min[2]) / (cols_max[2] - cols_min[2])),
+                                            float((row[5] - cols_min[3]) / (cols_max[3] - cols_min[3])),
+                                            float((row[6] - cols_min[4]) / (cols_max[4] - cols_min[4])),
+                                            float((row[7] - cols_min[5]) / (cols_max[5] - cols_min[5])),
+                                            float((row[8] - cols_min[6]) / (cols_max[6] - cols_min[6])),
+                                            row[9],row[10],row[11]
+                                             ))
+fields = [("carat_scale", FloatType()),  
+          ("color", StringType()), 
+          ("clarity", StringType()),
+            ("depth_scale", FloatType()),
+          ("table_scale",FloatType()), 
+          ("price_scale", FloatType()),
+            ("x_scale", FloatType()),
+          ("y_scale", FloatType()), 
+          ("z_scale", FloatType()),
+            ("cut", StringType()), 
+          ("label", StringType()),
+          ("price_group", StringType())]
+schema = StructType([StructField(e[0], e[1], True) for e in fields])
+spark_df = spark.createDataFrame(spark_df_rdd,schema)
+
+spark_df.show()
+"""
 
 # 批量地，针对单个类别型特征进行转换，把字符串的列按照出现频率进行排序
 for cate_col in cate_cols:
@@ -214,7 +251,7 @@ num_cols_out = [x+"_scale" for x in num_cols]
 
 cate_cols_out = [c+"_index" for c in cate_cols if c != 'label']
 all_cols = num_cols_out+cate_cols_out
-
+# 把全部特征合并
 featureAssembler = VectorAssembler(inputCols=all_cols, outputCol="features")
 spark_df = featureAssembler.transform(spark_df)
 
