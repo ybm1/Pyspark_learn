@@ -27,21 +27,34 @@ spark = SparkSession.builder.appName("pyspark_test").enableHiveSupport().getOrCr
 
 
 sentenceData = spark.createDataFrame([
- (0.0, "I like Spark"),
- (1.0, "Pandas is useful"),
- (2.0, "They are coded by Python ")
-], ["label", "sentence"])
+ (0.0, "I like Spark",2),
+ (1.0, "Pandas is useful",3),
+ (2.0, "They are coded by Python",1)
+], ["label", "sentence","a"])
 
-print(type(sentenceData))
+# print(type(sentenceData))
+#
 
-print(sentenceData.show())
+print(sentenceData.agg(F.max("a")).toPandas().iloc[0,0])
+#print(sentenceData.show())
 
 pandas_df = sentenceData.toPandas()
-print(pandas_df)
+#print(pandas_df)
+
+d = sentenceData.rdd
+d = d.map(lambda row: (row[0],row[2]))
+
+d = d.toDF(["a","b"])
+print(d.show())
+
+
+
+
+
+
 
 
 from pyspark.ml.stat import *
-
 
 
 spark= SparkSession\
@@ -58,6 +71,6 @@ data = [(0.0, Vectors.dense(0.5, 10.0)),
 df = spark.createDataFrame(data, ["label", "features"])
 
 r = ChiSquareTest.test(df, "features", "label").head()
-print("pValues: " + str(r.pValues))
-print("degreesOfFreedom: " + str(r.degreesOfFreedom))
-print("statistics: " + str(r.statistics))
+# print("pValues: " + str(r.pValues))
+# print("degreesOfFreedom: " + str(r.degreesOfFreedom))
+# print("statistics: " + str(r.statistics))

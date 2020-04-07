@@ -35,6 +35,14 @@ https://blog.csdn.net/sinat_36226553/article/details/104129182
 
 https://www.cnblogs.com/SoftwareBuilding/p/9492285.html
 
+https://blog.csdn.net/mergerly/article/details/77250098
 
+https://blog.csdn.net/yeshang_lady/article/details/89710914
+
+https://blog.csdn.net/yeshang_lady/article/details/87373280
+
+https://www.jianshu.com/p/70f8c78a3fc9
+
+https://stackoverflow.com/questions/38517808/create-a-dataframe-from-a-list-in-pyspark-sql
 
 
