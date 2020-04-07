@@ -237,6 +237,8 @@ schema = StructType([StructField(e[0], e[1], True) for e in fields])
 spark_df = spark.createDataFrame(spark_df_rdd,schema)
 
 spark_df.show()
+
+# 这种方法虽然不用for，但是也很麻烦，当列数一多尤其麻烦，所以还是用for吧 -_-||
 """
 
 # 批量地，针对单个类别型特征进行转换，把字符串的列按照出现频率进行排序
