@@ -17,6 +17,7 @@ from pyspark.ml.evaluation import BinaryClassificationEvaluator
 import pyspark.ml.feature as ft
 import pyspark.ml.evaluation as ev
 import pyspark.ml.tuning as tune
+from pyspark.ml.stat import ChiSquareTest
 
 import numpy as np
 import pandas as pd
@@ -256,10 +257,24 @@ def main():
     num_cols_out = [x+"_scale" for x in num_cols]
 
     cate_cols_out = [c+"_index" for c in cate_cols if c != 'label']
+
     all_cols = num_cols_out+cate_cols_out
     # 把全部特征合并
     featureAssembler = VectorAssembler(inputCols=all_cols, outputCol="features")
     spark_df = featureAssembler.transform(spark_df)
+
+    # 卡方检验
+    print("======>>>对类型型变量进行卡方检验")
+
+
+    cate_featureAssembler = VectorAssembler(inputCols=cate_cols_out, outputCol="cate_features")
+    spark_df = cate_featureAssembler.transform(spark_df)
+    r = ChiSquareTest.test(spark_df, "cate_features", "label_index").head()
+
+    print("pValues: " + str(r.pValues))
+    print("degreesOfFreedom: " + str(r.degreesOfFreedom))
+    print("statistics: " + str(r.statistics))
+    #print(spark_df.show())
 
 
     # 模型构建加网格搜索
